@@ -1,0 +1,9 @@
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/accessibility_service_description"
+    android:summary="@string/accessibility_service_summary"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="0"
+    android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents"
+    android:settingsActivity="com.LemonLnch.ui.MainActivity"
+    android:canRetrieveWindowContent="false" />

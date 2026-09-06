@@ -1,0 +1,61 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.LemonLnch"
+    compileSdk 34
+
+    // 仅在提供有效密钥库时创建 release 签名配置，否则根本不定义，避免空 storeFile 报错
+    def hasReleaseKeystore = false
+    if (project.hasProperty("LEMONLNCH_STORE_FILE")) {
+        def store = file(project.property("LEMONLNCH_STORE_FILE"))
+        hasReleaseKeystore = store.exists()
+    }
+
+    if (hasReleaseKeystore) {
+        signingConfigs {
+            release {
+                storeFile file(project.property("LEMONLNCH_STORE_FILE"))
+                storePassword project.property("LEMONLNCH_STORE_PASSWORD")
+                keyAlias project.property("LEMONLNCH_KEY_ALIAS")
+                keyPassword project.property("LEMONLNCH_KEY_PASSWORD")
+            }
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.lemonlnch"
+        minSdk 28
+        targetSdk 34
+        versionCode 101
+        versionName "1.1"
+    }
+
+    buildTypes {
+        release {
+            // 有正式密钥用正式签名，否则用 debug 签名，保证 assembleRelease 可打包
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs += 'src/main/assets'
+        }
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
+    implementation 'com.google.zxing:core:3.4.1'
+    implementation 'androidx.core:core:1.6.0'
+}

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>柠檬桌面 · 文件快传</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
+        body { background: linear-gradient(135deg,#edf5ff,#f9fbff); color: #152238; }
+        .wrap { max-width: 900px; margin: 0 auto; padding: 28px 18px 40px; }
+        .hero { background: rgba(255,255,255,.92); border-radius: 22px; padding: 28px 24px; box-shadow: 0 14px 45px rgba(35,75,125,.14); }
+        h1 { margin: 0 0 8px; font-size: 28px; }
+        .sub { color: #63748c; margin: 0; }
+        .drop { margin-top: 24px; border: 2px dashed #8eb6e8; background: #f7fbff; border-radius: 18px; padding: 28px 18px; text-align: center; }
+        input[type=file] { display: none; }
+        .button { display: inline-block; padding: 13px 24px; border-radius: 999px; background: #2d7ff9; color:#fff; font-weight:700; cursor:pointer; user-select:none; }
+        .tip { margin-top: 12px; color:#7a8899; font-size:14px; }
+        #queue { margin-top: 22px; display:grid; gap:10px; }
+        .item { background:#fff; border-radius:14px; padding:14px 16px; box-shadow:0 5px 18px rgba(36,68,105,.08); }
+        .name { font-weight:600; word-break:break-all; }
+        .meta { margin-top:5px; color:#7d8997; font-size:13px; }
+        .bar { margin-top:9px; height:6px; border-radius:99px; background:#e8eef6; overflow:hidden; }
+        .bar > i { display:block; width:0; height:100%; background:#2d7ff9; transition:width .15s ease; }
+        .ok { color:#22985b; }
+        .err { color:#d74444; }
+        .note { margin-top:18px; padding:14px 16px; border-radius:14px; background:#fff8df; color:#7d611d; font-size:14px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <section class="hero">
+        <h1>柠檬桌面文件快传</h1>
+        <p class="sub">手机、电脑与电视在同一局域网内，无需账号即可把文件发送到电视。</p>
+
+        <div class="drop" id="dropArea">
+            <label class="button" for="fileInput">选择文件并开始上传</label>
+            <input id="fileInput" type="file" multiple>
+            <div class="tip">支持 APK、M3U/TXT、图片、视频及其他普通文件；文件保存到电视的 Download 目录。</div>
+        </div>
+
+        <div id="queue"></div>
+        <div class="note">APK 上传完成后，回到电视端“文件快传”窗口，点击对应 APK 即可调用系统安装程序。</div>
+    </section>
+</div>
+<script>
+(function () {
+    const input = document.getElementById('fileInput');
+    const drop = document.getElementById('dropArea');
+    const queue = document.getElementById('queue');
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+    }
+
+    function upload(file) {
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.innerHTML = '<div class="name"></div><div class="meta">准备上传 · ' + formatSize(file.size) + '</div><div class="bar"><i></i></div>';
+        item.querySelector('.name').textContent = file.name;
+        queue.prepend(item);
+
+        const meta = item.querySelector('.meta');
+        const bar = item.querySelector('.bar i');
+        const xhr = new XMLHttpRequest();
+        // 使用原始二进制 body，避免 multipart 在部分电视/浏览器组合下解析失败导致连接被重置
+        xhr.open('POST', '/upload', true);
+        xhr.responseType = 'text';
+        xhr.timeout = 600000; // 10 分钟
+        xhr.upload.addEventListener('progress', function (e) {
+            if (!e.lengthComputable) return;
+            const percent = Math.round(e.loaded / e.total * 100);
+            bar.style.width = percent + '%';
+            meta.textContent = '上传中 · ' + percent + '%';
+        });
+        xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                bar.style.width = '100%';
+                meta.className = 'meta ok';
+                meta.textContent = '上传完成 · ' + formatSize(file.size);
+            } else {
+                meta.className = 'meta err';
+                var msg = (xhr.responseText || '').trim();
+                meta.textContent = '上传失败 · HTTP ' + xhr.status + (msg ? (' · ' + msg) : '');
+            }
+        };
+        xhr.onerror = function () {
+            meta.className = 'meta err';
+            meta.textContent = '上传失败 · 请确认设备仍在同一局域网，并保持电视端快传窗口打开';
+        };
+        xhr.ontimeout = function () {
+            meta.className = 'meta err';
+            meta.textContent = '上传失败 · 超时，请尝试更小的文件或检查网络';
+        };
+        // 文件名用 header 传递（percent-encoded UTF-8），body 为原始文件字节
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        xhr.setRequestHeader('X-File-Name-UTF8', encodeURIComponent(file.name));
+        if (file.type) {
+            try { xhr.setRequestHeader('X-File-Mime', file.type); } catch (e) {}
+        }
+        xhr.send(file);
+    }
+
+    function addFiles(files) {
+        Array.prototype.forEach.call(files || [], upload);
+    }
+
+    input.addEventListener('change', function () {
+        addFiles(input.files);
+        input.value = '';
+    });
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.style.background = '#edf6ff'; });
+    drop.addEventListener('dragleave', function () { drop.style.background = '#f7fbff'; });
+    drop.addEventListener('drop', function (e) {
+        e.preventDefault();
+        drop.style.background = '#f7fbff';
+        addFiles(e.dataTransfer.files);
+    });
+})();
+</script>
+</body>
+</html>
