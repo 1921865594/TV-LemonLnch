@@ -269,7 +269,7 @@ TV-LemonLnch/
 6. 完成。遥控器数字键变成一键启动，电视永远回到带直播预览的熟悉桌面。
 
 ### 赞赏
-
+https://github.com/1921865594/TV-LemonLnch/blob/main/mmexport1733804547365.png
 
 ### 免责声明
 
